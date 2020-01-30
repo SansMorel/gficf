@@ -4,8 +4,14 @@
 \alias{runLSA}
 \title{Latent Semantic Analysis (LSA)}
 \usage{
-runLSA(data, dim = NULL, rescale = F, centre = F, randomized = T,
-  seed = 180582)
+runLSA(
+  data,
+  dim = NULL,
+  rescale = F,
+  centre = F,
+  randomized = T,
+  seed = 180582
+)
 }
 \arguments{
 \item{data}{list; GFICF object}

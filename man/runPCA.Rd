@@ -4,8 +4,14 @@
 \alias{runPCA}
 \title{Principal Component Analysis (PCA)}
 \usage{
-runPCA(data, dim = NULL, rescale = F, centre = F, randomized = T,
-  seed = 180582)
+runPCA(
+  data,
+  dim = NULL,
+  rescale = F,
+  centre = F,
+  randomized = T,
+  seed = 180582
+)
 }
 \arguments{
 \item{data}{list; GFICF object}

@@ -4,15 +4,26 @@
 \alias{clustcells}
 \title{PhenoGraph clustering}
 \usage{
-clustcells(data, from.embedded = F, k = 15,
-  dist.method = "manhattan", nt = 2, community.algo = "louvian",
-  store.graph = T, seed = 180582, verbose = TRUE, resolution = 0.8,
-  n.start = 10, n.iter = 10)
+clustcells(
+  data,
+  from.embedded = F,
+  k = 15,
+  dist.method = "euclidean",
+  nt = 2,
+  nt_annoy = nt,
+  community.algo = "louvian",
+  store.graph = T,
+  seed = 180582,
+  verbose = TRUE,
+  resolution = 0.8,
+  n.start = 10,
+  n.iter = 10
+)
 }
 \arguments{
 \item{data}{list; Input data (gficf object)}
 
-\item{from.embedded}{logical; Use embeddedd (UMAP or tSNA) space for clustering cells. Best results are usually obtained not using the embedded space.}
+\item{from.embedded}{logical; Use embeddedd (UMAP or tSNE) space for clustering cells. Best results are usually obtained not using the embedded space.}
 
 \item{k}{integer; number of nearest neighbours (default:15)}
 
@@ -24,7 +35,9 @@ clustcells(data, from.embedded = F, k = 15,
   \item \code{"hamming"} (very slow)
 }}
 
-\item{nt}{integer; Number of cpus to use for k-nn search}
+\item{nt}{integer; Number of cpus to use for k-nn search. Not annoy index}
+
+\item{nt_annoy}{integer; Number of threads to use for searching annoy index. If set to 0, does not write index to temp.}
 
 \item{community.algo}{characthers; Community algorithm to use for clustering. Supported are:
 \itemize{
@@ -58,7 +71,7 @@ R implementation of the PhenoGraph algorithm
 A custom R implementation of the PhenoGraph (http://www.cell.com/cell/abstract/S0092-8674(15)00637-6) algorithm, 
 which is a clustering method designed for high-dimensional single-cell data analysis. It works by creating a graph ("network") representing 
 phenotypic similarities between cells by calclating the Jaccard coefficient between nearest-neighbor sets, and then identifying communities 
-using the well known Louvain method (https://sites.google.com/site/findcommunities/) in this graph.
+using the well known Louvain method (https://sites.google.com/site/findcommunities/) in this graph. 
 
 That version used PCA or LSA reduced meta-cells and multithreading annoy version for K-nn search (from uwot package).
 }

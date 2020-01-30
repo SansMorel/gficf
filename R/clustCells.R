@@ -10,7 +10,7 @@
 #' That version used PCA or LSA reduced meta-cells and multithreading annoy version for K-nn search (from uwot package).  
 #' 
 #' @param data list; Input data (gficf object)
-#' @param from.embedded logical; Use embeddedd (UMAP or tSNA) space for clustering cells. Best results are usually obtained not using the embedded space.
+#' @param from.embedded logical; Use embeddedd (UMAP or tSNE) space for clustering cells. Best results are usually obtained not using the embedded space.
 #' @param k integer; number of nearest neighbours (default:15)
 #' @param dist.method character; Dist to use for K-nn. Type of distance metric to use to find nearest neighbors. One of:
 #' \itemize{
@@ -19,7 +19,8 @@
 #'   \item \code{"manhattan"}
 #'   \item \code{"hamming"} (very slow)
 #' }
-#' @param  nt integer; Number of cpus to use for k-nn search
+#' @param  nt integer; Number of cpus to use for k-nn search. Not annoy index
+#' @param nt_annoy integer; Number of threads to use for searching annoy index. If set to 0, does not write index to temp. 
 #' @param community.algo characthers; Community algorithm to use for clustering. Supported are:
 #' \itemize{
 #'   \item \code{"louvian"} (the default, the original Louvian method)
@@ -43,7 +44,7 @@
 #' @import uwot
 #' @import Matrix
 #' @export
-clustcells <- function(data,from.embedded=F,k=15,dist.method="manhattan",nt=2,community.algo="louvian",store.graph=T,seed=180582,verbose=TRUE, resolution = 0.8, n.start = 10, n.iter = 10)
+clustcells <- function(data,from.embedded=F,k=15,dist.method="euclidean",nt=2, nt_annoy = nt, community.algo="louvian",store.graph=T,seed=180582,verbose=TRUE, resolution = 0.8, n.start = 10, n.iter = 10)
 {
   community.algo = base::match.arg(arg = community.algo,choices = c("louvian","louvian 2","louvian 3","walktrap","fastgreedy","leiden"),several.ok = F)
   
@@ -54,13 +55,12 @@ clustcells <- function(data,from.embedded=F,k=15,dist.method="manhattan",nt=2,co
   if (from.embedded)
   {
     if(is.null(data$embedded)) {stop("First run runReduction to embed your cells")}
-    neigh = uwot:::find_nn(as.matrix(data$embedded[,c(1,2)]),k=k+1,include_self = T,n_threads = nt,verbose = TRUE,method = "annoy",metric=dist.method)$idx
+    neigh = uwot:::find_nn(as.matrix(data$embedded[,c(1,2)]),k=k,include_self = F,n_threads = nt_annoy,verbose = verbose,method = "annoy",metric=dist.method)$idx
   } else {
     if(is.null(data$pca)) {stop("First run runPCA or runLSA to reduce dimensionality")}
-    neigh = uwot:::find_nn(data$pca$cells,k=k+1,include_self = T,n_threads = nt,verbose = verbose,method = "annoy",metric=dist.method)$idx
+    neigh = uwot:::find_nn(data$pca$cells,k=k,include_self = F,n_threads = nt_annoy,verbose = verbose,method = "annoy",metric=dist.method)$idx
   }
   
-  neigh = neigh[,-1]
   RcppParallel::setThreadOptions(numThreads = nt)
   relations <- rcpp_parallel_jaccard_coef(neigh,verbose)
   relations <- relations[relations[,3]>0, ]
