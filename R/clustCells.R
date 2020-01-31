@@ -23,9 +23,9 @@
 #' @param nt_annoy integer; Number of threads to use for searching annoy index. If set to 0, does not write index to temp. 
 #' @param community.algo characthers; Community algorithm to use for clustering. Supported are:
 #' \itemize{
-#'   \item \code{"louvian"} (the default, the original Louvian method)
-#'   \item \code{"louvian 2"} (Louvian with modularity optimization from Seurat)
-#'   \item \code{"louvian 3"} (Louvain algorithm with multilevel refinement from Seurat)
+#'   \item \code{"louvain"} (the default, the original louvain method)
+#'   \item \code{"louvain 2"} (louvain with modularity optimization from Seurat)
+#'   \item \code{"louvain 3"} (Louvain algorithm with multilevel refinement from Seurat)
 #'   \item \code{"leiden"} (Leiden algorithm see Traag et al. 2019)
 #'   \item \code{"walktrap"}
 #'   \item \code{"fastgreedy"}
@@ -33,9 +33,9 @@
 #' @param store.graph logical; Store produced phenograph in the gficf object
 #' @param seed integer; Seed to use for replication.
 #' @param verbose logical; Increase verbosity.
-#' @param resolution Value of the resolution parameter, use a value above (below) 1.0 if you want to obtain a larger (smaller) number of communities (used only for leiden and louvian 2 or 3 methods).
-#' @param n.start Number of random starts (used only for louvian 2 or 3 methods).
-#' @param n.iter Maximal number of iterations per random start (used only for louvian 2 or 3 methods).
+#' @param resolution Value of the resolution parameter, use a value above (below) 1.0 if you want to obtain a larger (smaller) number of communities (used only for leiden and louvain 2 or 3 methods).
+#' @param n.start Number of random starts (used only for louvain 2 or 3 methods).
+#' @param n.iter Maximal number of iterations per random start (used only for louvain 2 or 3 methods).
 #' @return the updated gficf object
 #' @importFrom  igraph graph.data.frame simplify cluster_louvain walktrap.community fastgreedy.community membership as_adj
 #' @importFrom RcppParallel setThreadOptions RcppParallelLibs
@@ -43,45 +43,50 @@
 #' @importFrom leiden leiden
 #' @import uwot
 #' @import Matrix
+#' @useDynLib gficf, .registration = TRUE
 #' @export
-clustcells <- function(data,from.embedded=F,k=15,dist.method="euclidean",nt=2, nt_annoy = nt, community.algo="louvian",store.graph=T,seed=180582,verbose=TRUE, resolution = 0.8, n.start = 10, n.iter = 10)
+clustcells <- function(data, data_type = "rna", from.embedded=F,k=15,dist.method="euclidean",nt=2, nt_annoy = nt, community.algo="louvain",store.graph=T,seed=180582,verbose=TRUE, resolution = 0.8, n.start = 10, n.iter = 10)
 {
-  community.algo = base::match.arg(arg = community.algo,choices = c("louvian","louvian 2","louvian 3","walktrap","fastgreedy","leiden"),several.ok = F)
+  community.algo = base::match.arg(arg = community.algo,choices = c("louvain","louvain 2","louvain 3","walktrap","fastgreedy","leiden"),several.ok = F)
   
-  if (is.null(data$embedded)) {stop("Run first runReduction function")}
+  if (is.null(data$embedded) && data_type == "rna") {stop("Run first runReduction function")}
   set.seed(seed)
-  tsmessage("Finding Neighboors..",verbose = verbose)
+  tsmessage(paste("Finding Neighboors on dataset with", nrow(data$pca$cells), "rows..."),verbose = verbose)
   
   if (from.embedded)
   {
     if(is.null(data$embedded)) {stop("First run runReduction to embed your cells")}
+    # uwot sets threads before calling find_nn, so find_nn does not set number
+    # of threads itself
+    RcppParallel::setThreadOptions(numThreads = ceiling(max(0,nt_annoy))) 
     neigh = uwot:::find_nn(as.matrix(data$embedded[,c(1,2)]),k=k,include_self = F,n_threads = nt_annoy,verbose = verbose,method = "annoy",metric=dist.method)$idx
   } else {
     if(is.null(data$pca)) {stop("First run runPCA or runLSA to reduce dimensionality")}
+    RcppParallel::setThreadOptions(numThreads = ceiling(max(0,nt_annoy)))
     neigh = uwot:::find_nn(data$pca$cells,k=k,include_self = F,n_threads = nt_annoy,verbose = verbose,method = "annoy",metric=dist.method)$idx
   }
   
-  RcppParallel::setThreadOptions(numThreads = nt)
-  relations <- rcpp_parallel_jaccard_coef(neigh,verbose)
+  RcppParallel::setThreadOptions(numThreads = ceiling(max(1,nt)))
+  relations <- rcpp_parallel_jaccard_coeff(neigh,verbose)
   relations <- relations[relations[,3]>0, ]
   relations <- as.data.frame(relations)
   colnames(relations)<- c("from","to","weight")
   g <- igraph::graph.data.frame(relations, directed=FALSE)
   rm(relations,neigh);gc()
   
-  if (community.algo=="louvian")
+  if (community.algo=="louvain")
   {
     tsmessage("Performing louvain...",verbose = verbose)
     community <- igraph::cluster_louvain(g)
   }
   
-  if (community.algo=="louvian 2")
+  if (community.algo=="louvain 2")
   {
     tsmessage("Performing louvain with modularity optimization...",verbose = verbose)
     community <- RunModularityClustering(igraph::as_adjacency_matrix(g,attr = "weight",sparse = T),1,resolution,1,n.start,n.iter,seed,verbose)
   }
   
-  if (community.algo=="louvian 3")
+  if (community.algo=="louvain 3")
   {
     tsmessage("Performing louvain with modularity optimization...",verbose = verbose)
     community <- RunModularityClustering(igraph::as_adjacency_matrix(g,attr = "weight",sparse = T),1,resolution,2,n.start,n.iter,seed,verbose)
@@ -107,21 +112,23 @@ clustcells <- function(data,from.embedded=F,k=15,dist.method="euclidean",nt=2, n
   }
   
   
-  if(community.algo %in% c("louvian 2","louvian 3","leiden")) {
-    if(community.algo %in% c("louvian 2","louvian 3")) {community = community + 1}
+  if(community.algo %in% c("louvain 2","louvain 3","leiden")) {
+    if(community.algo %in% c("louvain 2","louvain 3")) {community = community + 1}
     data$embedded$cluster = as.character(community)
   } else {
     data$embedded$cluster <- as.character(igraph::membership(community))
   }
   
   if (store.graph) {data$community=community;data$cell.graph=g} else {data$community=community}
-  
+  if(data_type == "cytof") {
+    tsmessage("Clustering done!")
+    return (data$embedded$cluster)
+    }
   # get centroid of clusters
   tsmessage("Computing Cluster Signatures...",verbose = verbose)
   cluster.map = data$embedded$cluster
   u = base::unique(cluster.map)
   data$cluster.gene.rnk = base::sapply(u, function(x,y=data$gficf,z=cluster.map) Matrix::rowSums(y[,z%in%x]))
-  
   tsmessage(paste("Detected Clusters:",length(unique(data$embedded$cluster))),verbose = verbose)
   
   return(data)
@@ -143,9 +150,24 @@ clustcells <- function(data,from.embedded=F,k=15,dist.method="euclidean",nt=2, n
 # @return clusters
 #
 #' @importFrom utils read.table write.table
-#
 RunModularityClustering <- function(SNN = matrix(), modularity = 1, resolution = 0.8, algorithm = 1, n.start = 10, n.iter = 10, random.seed = 0, print.output = TRUE, temp.file.location = NULL, edge.file.name = "") 
 {
   clusters <- RunModularityClusteringCpp(SNN,modularity,resolution,algorithm,n.start,n.iter,random.seed,print.output,edge.file.name)
   return(clusters)
 }
+
+
+#' Wrapper for clustering on cytof data 
+#'
+#' @param data data to be passed to clustcells
+#' @param ...  parameters to be passed to clustcells
+#'
+#' @return vector of communitites 
+#' @export
+clustcells_cytof <- function(data, ...) {
+  return(clustcells(data=list(pca=list(cells=as.matrix(data))),
+                    data_type = "cytof",
+                    from.embedded = F,
+                    ...))
+}
+.onUnload <- function (libpath) { library.dynam.unload("gficf", libpath)}

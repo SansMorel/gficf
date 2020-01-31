@@ -51,15 +51,15 @@ BEGIN_RCPP
     return rcpp_result_gen;
 END_RCPP
 }
-// rcpp_parallel_jaccard_coef
-Rcpp::NumericMatrix rcpp_parallel_jaccard_coef(Rcpp::NumericMatrix mat, bool printOutput);
-RcppExport SEXP _gficf_rcpp_parallel_jaccard_coef(SEXP matSEXP, SEXP printOutputSEXP) {
+// rcpp_parallel_jaccard_coeff
+Rcpp::NumericMatrix rcpp_parallel_jaccard_coeff(Rcpp::NumericMatrix mat, bool printOutput);
+RcppExport SEXP _gficf_rcpp_parallel_jaccard_coeff(SEXP matSEXP, SEXP printOutputSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
     Rcpp::traits::input_parameter< Rcpp::NumericMatrix >::type mat(matSEXP);
     Rcpp::traits::input_parameter< bool >::type printOutput(printOutputSEXP);
-    rcpp_result_gen = Rcpp::wrap(rcpp_parallel_jaccard_coef(mat, printOutput));
+    rcpp_result_gen = Rcpp::wrap(rcpp_parallel_jaccard_coeff(mat, printOutput));
     return rcpp_result_gen;
 END_RCPP
 }
@@ -81,7 +81,7 @@ static const R_CallMethodDef CallEntries[] = {
     {"_gficf_RunModularityClusteringCpp", (DL_FUNC) &_gficf_RunModularityClusteringCpp, 9},
     {"_gficf_jaccard_coeff", (DL_FUNC) &_gficf_jaccard_coeff, 2},
     {"_gficf_rcpp_WMU_test", (DL_FUNC) &_gficf_rcpp_WMU_test, 3},
-    {"_gficf_rcpp_parallel_jaccard_coef", (DL_FUNC) &_gficf_rcpp_parallel_jaccard_coef, 2},
+    {"_gficf_rcpp_parallel_jaccard_coeff", (DL_FUNC) &_gficf_rcpp_parallel_jaccard_coeff, 2},
     {"_gficf_rcpp_parallel_WMU_test", (DL_FUNC) &_gficf_rcpp_parallel_WMU_test, 3},
     {NULL, NULL, 0}
 };
